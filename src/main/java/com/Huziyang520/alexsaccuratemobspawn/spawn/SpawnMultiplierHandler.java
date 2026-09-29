@@ -57,12 +57,16 @@ public final class SpawnMultiplierHandler {
 
         if (multiplier < 1.0D) {
             if (multiplier <= 0.0D) {
+                logOnce(mob.getType(), "blocked every spawn, multiplier " + multiplier);
                 event.setCanceled(true);
             } else if (mob.getRandom().nextDouble() > multiplier) {
+                logOnce(mob.getType(), "dropped this spawn, multiplier " + multiplier);
                 event.setCanceled(true);
             }
             return;
         }
+
+        logOnce(mob.getType(), "spawning extra copies, multiplier " + multiplier);
 
         if (SPAWNING_EXTRA.get()) {
             return;
@@ -80,6 +84,16 @@ public final class SpawnMultiplierHandler {
             } finally {
                 SPAWNING_EXTRA.set(false);
             }
+        }
+    }
+
+    /**
+     * Logs one line per entity type per config revision, so a player can see that (and what) the
+     * rules did without flooding the log with one line per spawn event.
+     */
+    private static void logOnce(EntityType<?> type, String message) {
+        if (MobRules.logOnce("multiplier:" + type)) {
+            alexsaccuratemobspawn.LOGGER.info("Spawn multiplier for {}: {}", type, message);
         }
     }
 

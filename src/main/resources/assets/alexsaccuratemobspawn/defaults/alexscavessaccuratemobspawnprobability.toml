@@ -1,12 +1,26 @@
 # ============================================================
-#  Alex's Accurate Mob Spawn - Alex's Caves 生成概率（生成频率）
+#  Alex's Accurate Mob Spawn - Alex's Caves Spawn Probability (spawn frequency)
 # ------------------------------------------------------------
+#  Format : "<namespace>:<path>" = <number>
+#  Range  : 0.0 ~ 100.0 (0.0 = no longer spawns naturally; 1.0 = vanilla frequency; > 1 = spawns more often)
+#  Probability only affects natural spawning. Spawn eggs, commands, structure summons and
+#  event/transformation spawns are not affected.
+#  Entities that are not listed here are not touched (treated as 1.0).
+#  You may drop any additional .toml file into this folder to control other mobs
+#  (vanilla or other mods). Its format is identical, and files loaded later override
+#  entries with the same name from files loaded earlier.
+#  How to tell the two kinds apart: put  type = "multiplier"  or  type = "probability"
+#  at the top of your own file, or include "multiplier" / "probability" in its file name.
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Alex's Accurate Mob Spawn - Alex's Caves 生成概率（生成频率）
 #  格式：实体注册名 = 数值
 #  范围：0.0 ~ 100.0（0.0 = 不再自然生成；1.0 = 原版频率；大于 1 = 提高生成频率）
 #  概率只作用于自然生成，不影响刷怪蛋 / 命令 / 结构召唤 / 事件生成
 #  未在本文件中出现的实体 = 不干预（按 1.0 处理）
 #  你也可以在本目录下新建任意 .toml 文件控制其它生物（含原版 / 其它模组），
 #  格式与本文件完全一致；后加载的文件会覆盖先加载的同名条目。
+#  区分两类文件：在自己新建的文件顶部写  type = "multiplier"  或  type = "probability"，
+#  或者让文件名里包含 multiplier / probability。
 # ============================================================
 
 [mobs]

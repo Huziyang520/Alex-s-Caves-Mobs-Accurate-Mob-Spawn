@@ -1,6 +1,12 @@
 # ============================================================
-#  Alex's Accurate Mob Spawn - 通用设置
+#  Alex's Accurate Mob Spawn - General Settings
 # ------------------------------------------------------------
+#  All switches below default to ON and take effect immediately after saving;
+#  no game restart is needed.
+#  The rule files (spawn multiplier / spawn probability) are the other .toml files
+#  in this folder.
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Alex's Accurate Mob Spawn - 通用设置
 #  三个开关默认全部开启，保存后立刻生效，不需要重启游戏。
 #  规则文件（生成倍率 / 生成概率）见本文件夹内的其它 .toml。
 # ============================================================

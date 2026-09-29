@@ -6,6 +6,8 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The live rule table.
@@ -34,6 +36,10 @@ public final class MobRules {
 
     /** Bumped on every successful reload; used to invalidate caches. */
     private static volatile int revision = 0;
+
+    /** Keys already logged since the last reload; keeps the runtime log bounded. */
+    private static final Set<String> LOGGED = ConcurrentHashMap.newKeySet();
+    private static volatile int loggedRevision = -1;
 
     private MobRules() {
     }
@@ -96,5 +102,17 @@ public final class MobRules {
 
     public static int revision() {
         return revision;
+    }
+
+    /**
+     * True the first time a key is seen after the last reload. Used so the runtime handlers can
+     * report what they did (proof the configuration is live) without logging once per spawn event.
+     */
+    public static boolean logOnce(String key) {
+        if (revision != loggedRevision) {
+            LOGGED.clear();
+            loggedRevision = revision;
+        }
+        return LOGGED.add(key);
     }
 }

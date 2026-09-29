@@ -96,6 +96,10 @@ public final class SpawnWeightScaler {
                 alexsaccuratemobspawn.LOGGER.warn("Spawn weights overflowed, probability rules skipped for one list");
             } else {
                 result = rebuilt;
+                // Fires once per distinct spawn list per config revision (the identity cache short
+                // circuits every later call), so it stays bounded while proving rules are applied.
+                alexsaccuratemobspawn.LOGGER.info("Spawn probability applied to a spawn list: {} -> {} entries",
+                        entries.size(), result.unwrap().size());
             }
         }
 
