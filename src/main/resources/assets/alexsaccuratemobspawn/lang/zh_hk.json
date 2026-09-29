@@ -1,0 +1,3 @@
+{
+  "message.alexsaccuratemobspawn.config_moved": "Alex Accurate Mob Spawn：本模組嘅設定檔放喺 config\\alexsaccuratemobspawn 資料夾入面，你可以照住檔案嘅格式自己寫設定檔，控制任何生物嘅生成機率同生成倍率。如果你之前裝過本模組，原本 config\\alexscavessaccuratemobspawn-common.toml 嘅內容已經自動搬去 config\\alexsaccuratemobspawn\\alexscavessaccuratemobspawnmultiplier.toml，舊檔案已經刪除。呢個提示可以喺設定檔入面關掉。"
+}

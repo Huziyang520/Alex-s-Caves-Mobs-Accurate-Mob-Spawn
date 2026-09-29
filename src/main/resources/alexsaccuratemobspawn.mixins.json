@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.Huziyang520.alexsaccuratemobspawn.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "alexsaccuratemobspawn.refmap.json",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "mixins": [
+    "NaturalSpawnerMixin"
+  ]
+}

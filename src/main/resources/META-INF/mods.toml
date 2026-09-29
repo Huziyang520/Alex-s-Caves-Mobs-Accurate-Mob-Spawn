@@ -1,0 +1,51 @@
+modLoader="javafml" #mandatory
+loaderVersion="${loader_version_range}" #mandatory
+license="${mod_license}"
+
+# Mixin configs are declared through the jar manifest attribute "MixinConfigs"
+# (added by the MixinGradle plugin, see build.gradle). Forge 1.20.1 does NOT read a
+# [[mixins]] section from mods.toml, that is a newer loader feature.
+
+[[mods]] #mandatory
+modId="${mod_id}" #mandatory
+version="${mod_version}" #mandatory
+displayName="${mod_name}" #mandatory
+# Mod list display data. These fields only take effect inside this [[mods]] sub table.
+displayURL="https://github.com/Huziyang520"
+issueTrackerURL="https://issue.mengcai.online/"
+# Path inside the jar of the 128x128 icon shown in the mod list. Without this field Forge shows
+# the default placeholder icon even when the file exists.
+logoFile="icon.png"
+authors="${mod_authors}" #optional
+description='''${mod_description}'''
+
+[[dependencies.${mod_id}]]
+    modId="forge" #mandatory
+    mandatory=true #mandatory
+    versionRange="${forge_version_range}" #mandatory
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# Alex's Caves: optional. The list of built in defaults covers its mobs, but the mod is fully
+# usable without it (the configuration can control any mob, including vanilla).
+[[dependencies.${mod_id}]]
+    modId="alexscaves"
+    mandatory=false
+    versionRange="[1.20.1,)"
+    ordering="AFTER"
+    side="BOTH"
+
+# Alex's Mobs: optional, same reasoning.
+[[dependencies.${mod_id}]]
+    modId="alexsmobs"
+    mandatory=false
+    versionRange="[1.22,)"
+    ordering="AFTER"
+    side="BOTH"

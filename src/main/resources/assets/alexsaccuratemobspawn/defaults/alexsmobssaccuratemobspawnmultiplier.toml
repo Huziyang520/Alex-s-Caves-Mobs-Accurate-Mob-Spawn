@@ -1,0 +1,244 @@
+# ============================================================
+#  Alex's Accurate Mob Spawn - Alex's Mobs 生成倍率
+# ------------------------------------------------------------
+#  格式：实体注册名 = 数值
+#  范围：0.0 ~ 10.0（0.0 = 每次生成都被拦截；1.0 = 原版；大于 1 = 一次生成更多）
+#  倍率作用于「一次生成几只」，不影响生成频率（频率见 probability 文件）
+#  未在本文件中出现的实体 = 不干预（按 1.0 处理）
+#  你也可以在本目录下新建任意 .toml 文件控制其它生物（含原版 / 其它模组），
+#  格式与本文件完全一致；后加载的文件会覆盖先加载的同名条目。
+# ============================================================
+
+[mobs]
+	# 灰熊
+	"alexsmobs:grizzly_bear" = 1.0
+	# 走鹃
+	"alexsmobs:roadrunner" = 1.0
+	# 骨蟒
+	"alexsmobs:bone_serpent" = 1.0
+	# 骨蟒骨节（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:bone_serpent_part" = 1.0
+	# 瞪羚
+	"alexsmobs:gazelle" = 1.0
+	# 鳄鱼
+	"alexsmobs:crocodile" = 1.0
+	# 苍蝇
+	"alexsmobs:fly" = 1.0
+	# 蜂鸟
+	"alexsmobs:hummingbird" = 1.0
+	# 虎鲸
+	"alexsmobs:orca" = 1.0
+	# 曦鹤
+	"alexsmobs:sunbird" = 1.0
+	# 大猩猩
+	"alexsmobs:gorilla" = 1.0
+	# 绯红蚊子
+	"alexsmobs:crimson_mosquito" = 1.0
+	# 蚊子血（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:mosquito_spit" = 1.0
+	# 响尾蛇
+	"alexsmobs:rattlesnake" = 1.0
+	# 末影缓步兽
+	"alexsmobs:endergrade" = 1.0
+	# 锤头鲨
+	"alexsmobs:hammerhead_shark" = 1.0
+	# 鲨鱼利齿箭（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:shark_tooth_arrow" = 1.0
+	# 龙虾
+	"alexsmobs:lobster" = 1.0
+	# 科莫多巨蜥
+	"alexsmobs:komodo_dragon" = 1.0
+	# 卷尾猴
+	"alexsmobs:capuchin_monkey" = 1.0
+	# 弹射物（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:tossed_item" = 1.0
+	# 洞穴蜈蚣（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:centipede_head" = 1.0
+	# 洞穴蜈蚣身（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:centipede_body" = 1.0
+	# 洞穴蜈蚣尾（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:centipede_tail" = 1.0
+	# 诡异蟾蜍
+	"alexsmobs:warped_toad" = 1.0
+	# 驼鹿
+	"alexsmobs:moose" = 1.0
+	# 复刻怪（仅结构生成；概率对其无效，倍率仍生效）
+	"alexsmobs:mimicube" = 1.0
+	# 浣熊
+	"alexsmobs:raccoon" = 1.0
+	# 水滴鱼
+	"alexsmobs:blobfish" = 1.0
+	# 海豹
+	"alexsmobs:seal" = 1.0
+	# 蟑螂
+	"alexsmobs:cockroach" = 1.0
+	# 蟑螂卵（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:cockroach_egg" = 1.0
+	# 鲸头鹳
+	"alexsmobs:shoebill" = 1.0
+	# 大象
+	"alexsmobs:elephant" = 1.0
+	# 灵魂鹫（仅结构生成；概率对其无效，倍率仍生效）
+	"alexsmobs:soul_vulture" = 1.0
+	# 雪豹
+	"alexsmobs:snow_leopard" = 1.0
+	# 灵翼
+	"alexsmobs:spectre" = 1.0
+	# 乌鸦
+	"alexsmobs:crow" = 1.0
+	# 大鳄龟
+	"alexsmobs:alligator_snapping_turtle" = 1.0
+	# 蘑菇君
+	"alexsmobs:mungus" = 1.0
+	# 螳螂虾
+	"alexsmobs:mantis_shrimp" = 1.0
+	# 沙风怪
+	"alexsmobs:guster" = 1.0
+	# 射出的沙子（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:sand_shot" = 1.0
+	# 沙风（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:gust" = 1.0
+	# 诡异蚊鬼（不走常规自然生成；概率对其无效，倍率仍生效）
+	"alexsmobs:warped_mosco" = 1.0
+	# 血淋巴（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:hemolymph" = 1.0
+	# 跨座兽
+	"alexsmobs:straddler" = 1.0
+	# 跨座蝌蚪
+	"alexsmobs:stradpole" = 1.0
+	# 跨板（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:straddleboard" = 1.0
+	# 鸸鹋
+	"alexsmobs:emu" = 1.0
+	# emu_egg（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:emu_egg" = 1.0
+	# 鸭嘴兽
+	"alexsmobs:platypus" = 1.0
+	# 悬熊
+	"alexsmobs:dropbear" = 1.0
+	# 袋獾
+	"alexsmobs:tasmanian_devil" = 1.0
+	# 袋鼠
+	"alexsmobs:kangaroo" = 1.0
+	# 抹香鲸
+	"alexsmobs:cachalot_whale" = 1.0
+	# 鲸鱼回声（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:cachalot_echo" = 1.0
+	# 切叶蚁（不走常规自然生成；概率对其无效，倍率仍生效）
+	"alexsmobs:leafcutter_ant" = 1.0
+	# 末影噬菌体
+	"alexsmobs:enderiophage" = 1.0
+	# 末影噬菌体火箭（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:enderiophage_rocket" = 1.0
+	# 白头海雕
+	"alexsmobs:bald_eagle" = 1.0
+	# 老虎
+	"alexsmobs:tiger" = 1.0
+	# 沙漠蛛蜂
+	"alexsmobs:tarantula_hawk" = 1.0
+	# 虚空蠕虫（不走常规自然生成；概率对其无效，倍率仍生效）
+	"alexsmobs:void_worm" = 1.0
+	# 虚空蠕虫（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:void_worm_part" = 1.0
+	# 虚空水晶（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:void_worm_shot" = 1.0
+	# 虚空传送门（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:void_portal" = 1.0
+	# 皱鳃鲨
+	"alexsmobs:frilled_shark" = 1.0
+	# 拟态章鱼
+	"alexsmobs:mimic_octopus" = 1.0
+	# 海鸥
+	"alexsmobs:seagull" = 1.0
+	# 寒霜潜伏者
+	"alexsmobs:froststalker" = 1.0
+	# ice_shard（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:ice_shard" = 1.0
+	# 獠牙兽
+	"alexsmobs:tusklin" = 1.0
+	# 炽岩
+	"alexsmobs:laviathan" = 1.0
+	# 宙游鲟
+	"alexsmobs:cosmaw" = 1.0
+	# 巨嘴鸟
+	"alexsmobs:toucan" = 1.0
+	# 鬃狼
+	"alexsmobs:maned_wolf" = 1.0
+	# 森蚺
+	"alexsmobs:anaconda" = 1.0
+	# 森蚺（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:anaconda_part" = 1.0
+	# 藤蔓套索（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:vine_lasso" = 1.0
+	# 食蚁兽
+	"alexsmobs:anteater" = 1.0
+	# 岩磙兽
+	"alexsmobs:rocky_roller" = 1.0
+	# 花飘飘
+	"alexsmobs:flutter" = 1.0
+	# 花粉球（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:pollen_ball" = 1.0
+	# 狮尾狒狒
+	"alexsmobs:gelada_monkey" = 1.0
+	# 跳鼠
+	"alexsmobs:jerboa" = 1.0
+	# 水龟
+	"alexsmobs:terrapin" = 1.0
+	# 栉水母
+	"alexsmobs:comb_jelly" = 1.0
+	# 宇宙鳕鱼
+	"alexsmobs:cosmic_cod" = 1.0
+	# 蘑菇兔
+	"alexsmobs:bunfungus" = 1.0
+	# 野牛
+	"alexsmobs:bison" = 1.0
+	# 大王乌贼
+	"alexsmobs:giant_squid" = 1.0
+	# 触手（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:squid_grapple" = 1.0
+	# 海熊（不走常规自然生成；概率对其无效，倍率仍生效）
+	"alexsmobs:sea_bear" = 1.0
+	# 魔鳉
+	"alexsmobs:devils_hole_pupfish" = 1.0
+	# 鲶鱼
+	"alexsmobs:catfish" = 1.0
+	# 飞鱼
+	"alexsmobs:flying_fish" = 1.0
+	# 骷髅剑鱼（仅结构生成；概率对其无效，倍率仍生效）
+	"alexsmobs:skelewag" = 1.0
+	# 雨蛙
+	"alexsmobs:rain_frog" = 1.0
+	# 林鸱
+	"alexsmobs:potoo" = 1.0
+	# 弹涂鱼
+	"alexsmobs:mudskipper" = 1.0
+	# 泥球（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:mud_ball" = 1.0
+	# 犀牛
+	"alexsmobs:rhinoceros" = 1.0
+	# 蜜袋鼯
+	"alexsmobs:sugar_glider" = 1.0
+	# 瞻远者
+	"alexsmobs:farseer" = 1.0
+	# 贱叫怪
+	"alexsmobs:skreecher" = 1.0
+	# 地底矿工（仅结构生成；概率对其无效，倍率仍生效）
+	"alexsmobs:underminer" = 1.0
+	# 轻语灵
+	"alexsmobs:murmur" = 1.0
+	# 轻语灵的头（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:murmur_head" = 1.0
+	# 筋腱（多体节部件，不独立生成；倍率与概率均不适用）
+	"alexsmobs:tendon_segment" = 1.0
+	# 臭鼬
+	"alexsmobs:skunk" = 1.0
+	# 臭屁云（非生物实体：投射物 / 载具 / 掉落物；倍率与概率均不适用）
+	"alexsmobs:fart" = 1.0
+	# 香蕉蛞蝓
+	"alexsmobs:banana_slug" = 1.0
+	# 冠蓝鸦
+	"alexsmobs:blue_jay" = 1.0
+	# 凯门鳄
+	"alexsmobs:caiman" = 1.0
+	# 鲎虫
+	"alexsmobs:triops" = 1.0

@@ -1,0 +1,3 @@
+{
+  "message.alexsaccuratemobspawn.config_moved": "Alex Accurate Mob Spawn：本 MOD の設定ファイルは config\\alexsaccuratemobspawn フォルダにあります。同じ書式でファイルを追加すれば、任意の MOB の出現確率と倍率を設定できます。以前に本 MOD を導入していた場合、config\\alexscavessaccuratemobspawn-common.toml の内容は config\\alexsaccuratemobspawn\\alexscavessaccuratemobspawnmultiplier.toml へ自動的に移され、旧ファイルは削除されました。この通知は設定ファイルで無効にできます。"
+}

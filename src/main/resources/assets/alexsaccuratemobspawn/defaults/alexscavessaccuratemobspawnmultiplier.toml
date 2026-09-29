@@ -1,0 +1,112 @@
+# ============================================================
+#  Alex's Accurate Mob Spawn - Alex's Caves 生成倍率
+# ------------------------------------------------------------
+#  格式：实体注册名 = 数值
+#  范围：0.0 ~ 10.0（0.0 = 每次生成都被拦截；1.0 = 原版；大于 1 = 一次生成更多）
+#  倍率作用于「一次生成几只」，不影响生成频率（频率见 probability 文件）
+#  未在本文件中出现的实体 = 不干预（按 1.0 处理）
+#  你也可以在本目录下新建任意 .toml 文件控制其它生物（含原版 / 其它模组），
+#  格式与本文件完全一致；后加载的文件会覆盖先加载的同名条目。
+# ============================================================
+
+[mobs]
+
+# ---------- 磁场洞穴 magnetic_caves ----------
+	# 磁控机兵
+	"alexscaves:magnetron" = 1.0
+	# 磁流灵
+	"alexscaves:teletor" = 1.0
+	# 弹跳机兵
+	"alexscaves:boundroid" = 1.0
+	# 富铁史莱姆
+	"alexscaves:ferrouslime" = 1.0
+	# 扫描机兵
+	"alexscaves:notor" = 1.0
+
+# ---------- 毒化洞穴 toxic_caves ----------
+	# 伽马蟑螂
+	"alexscaves:gammaroach" = 1.0
+	# 舐脑魔
+	"alexscaves:brainiac" = 1.0
+	# 核能苦力怕
+	"alexscaves:nucleeper" = 1.0
+	# 射线猫
+	"alexscaves:raycat" = 1.0
+	# 辐鳃鱼
+	"alexscaves:radgill" = 1.0
+
+# ---------- 原始洞穴 primordial_caves ----------
+	# 地底翼龙
+	"alexscaves:subterranodon" = 1.0
+	# 阔鼻迅猛龙
+	"alexscaves:vallumraptor" = 1.0
+	# 洞穴角龙
+	"alexscaves:grottoceratops" = 1.0
+	# 撼地龙
+	"alexscaves:tremorsaurus" = 1.0
+	# 遗迹恐手龙
+	"alexscaves:relicheirus" = 1.0
+	# 擎天龙
+	"alexscaves:atlatitan" = 1.0
+	# 三叶虾
+	"alexscaves:trilocaris" = 1.0
+
+# ---------- 渊海陷窟 abyssal_chasm ----------
+	# 深潜者
+	"alexscaves:deep_one" = 1.0
+	# 深潜者骑士
+	"alexscaves:deep_one_knight" = 1.0
+	# 深潜者法师
+	"alexscaves:deep_one_mage" = 1.0
+	# 灯笼鱼
+	"alexscaves:lanternfish" = 1.0
+	# 碎船兽
+	"alexscaves:hullbreaker" = 1.0
+	# 三脚鱼
+	"alexscaves:tripodfish" = 1.0
+	# 海猪
+	"alexscaves:sea_pig" = 1.0
+	# 浮蚕
+	"alexscaves:gossamer_worm" = 1.0
+	# 水雷守卫者（不走常规自然生成，概率配置对其无效）
+	"alexscaves:mine_guardian" = 1.0
+
+# ---------- 异寂空谷 forlorn_hollows ----------
+	# 幽暗蛾
+	"alexscaves:gloomoth" = 1.0
+	# 地底异教徒
+	"alexscaves:underzealot" = 1.0
+	# 蚀牙兽
+	"alexscaves:corrodent" = 1.0
+	# 夜行蝠
+	"alexscaves:vesper" = 1.0
+	# 窥心者（不走常规自然生成，概率配置对其无效）
+	"alexscaves:watcher" = 1.0
+	# 遗弃者（不走常规自然生成，概率配置对其无效）
+	"alexscaves:forsaken" = 1.0
+
+# ---------- 糖果龋洞 candy_cavity ----------
+	# 糖果独角兽
+	"alexscaves:candicorn" = 1.0
+	# 软糖熊
+	"alexscaves:gummy_bear" = 1.0
+	# 嗜糖魔
+	"alexscaves:caniac" = 1.0
+	# 糖球苦力怕
+	"alexscaves:gumbeeper" = 1.0
+	# 口香糖蠕虫
+	"alexscaves:gum_worm" = 1.0
+	# 焦糖怪
+	"alexscaves:caramel_cube" = 1.0
+	# 甘草女巫（不走常规自然生成，概率配置对其无效）
+	"alexscaves:licowitch" = 1.0
+	# 姜饼人（不走常规自然生成，概率配置对其无效）
+	"alexscaves:gingerbread_man" = 1.0
+	# 软糖鱼
+	"alexscaves:sweetish_fish" = 1.0
+
+# ---------- 特殊 / Boss special ----------
+	# 暝煌龙（不走常规自然生成，概率配置对其无效）
+	"alexscaves:luxtructosaurus" = 1.0
+	# 撼地斯拉（不走常规自然生成，概率配置对其无效）
+	"alexscaves:tremorzilla" = 1.0

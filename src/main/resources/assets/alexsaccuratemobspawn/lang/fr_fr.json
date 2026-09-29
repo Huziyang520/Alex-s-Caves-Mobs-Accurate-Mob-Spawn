@@ -1,0 +1,3 @@
+{
+  "message.alexsaccuratemobspawn.config_moved": "Alex Accurate Mob Spawn : les fichiers de configuration du mod se trouvent dans le dossier config\\alexsaccuratemobspawn. Vous pouvez suivre leur format pour créer vos propres fichiers et régler la probabilité et le multiplicateur d'apparition de n'importe quel mob. Si le mod était déjà installé, le contenu de config\\alexscavessaccuratemobspawn-common.toml a été transféré vers config\\alexsaccuratemobspawn\\alexscavessaccuratemobspawnmultiplier.toml et l'ancien fichier a été supprimé. Cette notification peut être désactivée dans la configuration."
+}
