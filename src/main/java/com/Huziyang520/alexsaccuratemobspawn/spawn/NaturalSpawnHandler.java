@@ -4,7 +4,9 @@ import com.Huziyang520.alexsaccuratemobspawn.alexsaccuratemobspawn;
 import com.Huziyang520.alexsaccuratemobspawn.config.MobRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -76,6 +78,20 @@ public final class NaturalSpawnHandler {
 
     /** Depth of "a mob is being created by known world generation code" on this thread. */
     private static final ThreadLocal<Integer> WORLDGEN_SPAWN_DEPTH = ThreadLocal.withInitial(() -> 0);
+
+    /**
+     * Mobs whose probability was already decided in {@code Mob#checkSpawnRules}, right before a spawner
+     * added them. The join event must not roll the same spawn a second time.
+     */
+    private static final Set<Entity> PRE_JUDGED = Collections.synchronizedSet(
+            Collections.newSetFromMap(new WeakHashMap<>()));
+
+    /**
+     * Entities created inside a known world generation window. Weak on purpose: entries disappear once
+     * the entity itself is gone.
+     */
+    private static final Set<Entity> WORLDGEN_CREATED = Collections.synchronizedSet(
+            Collections.newSetFromMap(new WeakHashMap<>()));
 
     private NaturalSpawnHandler() {
     }
@@ -149,16 +165,22 @@ public final class NaturalSpawnHandler {
         }
 
         MobSpawnType origin = ORIGINS.remove(mob);
-        if (origin == null) {
-            if (inKnownWorldgenSpawn()) {
-                // Alex's Caves' roost feature and its world generated dinosaur eggs create the entity and
-                // add it directly, without ever calling Mob#finalizeSpawn. The flag is only raised inside
-                // those code paths, so this cannot leak onto other spawns.
-                origin = MobSpawnType.CHUNK_GENERATION;
-            } else if (MobRules.probabilityEnabled() && MobRules.probability(mob.getType()) != 1.0D) {
-                // Bounded diagnostic: tells us which mobs still arrive through a path with no spawn type.
-                logOnce("origin", mob.getType(), "created without a spawn type; probability not applied");
+        if (origin == null && (inKnownWorldgenSpawn() || WORLDGEN_CREATED.remove(mob))) {
+            // Alex's Caves' roost feature and its world generated dinosaur eggs create the entity and add
+            // it directly, without ever calling Mob#finalizeSpawn. The thread flag is raised inside those
+            // code paths and the stamp survives a join that happens later on another thread.
+            origin = MobSpawnType.CHUNK_GENERATION;
+        }
+        if (origin == null && MobRules.probabilityEnabled() && MobRules.probability(mob.getType()) != 1.0D) {
+            // Bounded diagnostic: tells us which mobs still arrive through a path with no spawn type.
+            logOnce("origin", mob.getType(), "created without a spawn type; probability not applied");
+        }
+        if (PRE_JUDGED.remove(mob)) {
+            // Already decided before the mob was added; only the multiplier is left to do.
+            if (!MODULE_SPAWNS.contains(mob)) {
+                applyMultiplier(event, mob);
             }
+            return;
         }
         if (!MODULE_SPAWNS.contains(mob) && applyProbability(event, mob, origin)) {
             return;
@@ -177,6 +199,84 @@ public final class NaturalSpawnHandler {
                 return;
             }
             ExtraSpawnDriver.spawnExtra(task.level, task.type, task.anchor, task.count);
+        }
+    }
+
+    /**
+     * Judges a natural spawn in {@code Mob#checkSpawnRules}, the last check a spawner runs right before it
+     * adds the mob to the world, and the only place that sees spawns which never produce a join event on
+     * the same thread (Alex's Caves' cave creature burst is one of them).
+     *
+     * @return true when the mob must not be created at all
+     */
+    public static boolean shouldVoidBeforeAdding(Mob mob, LevelAccessor level, MobSpawnType spawnType) {
+        if (!MobRules.probabilityEnabled() || !isNatural(spawnType)) {
+            return false;
+        }
+
+        double probability = MobRules.probability(mob.getType());
+        if (probability == 1.0D) {
+            return false;
+        }
+
+        if (probability <= 0.0D) {
+            logOnce("probability", mob.getType(), "voided every natural opportunity, probability " + probability);
+            return true;
+        }
+
+        if (probability < 1.0D) {
+            if (mob.getRandom().nextDouble() >= probability) {
+                logOnce("probability", mob.getType(), "voided this opportunity, probability " + probability);
+                return true;
+            }
+            PRE_JUDGED.add(mob);
+            return false;
+        }
+
+        queueExtraSpawns(level, mob, probability);
+        PRE_JUDGED.add(mob);
+        return false;
+    }
+
+    /**
+     * Creates the additional occurrences asked for by a probability above {@code 1.0}. The vanilla
+     * occurrence itself is always kept, so the total expectation becomes {@code occurrences × probability}.
+     */
+    private static void queueExtraSpawns(LevelAccessor level, Mob mob, double probability) {
+        int extra = Mth.floor(probability) - 1;
+        if (mob.getRandom().nextDouble() < (probability - Mth.floor(probability))) {
+            extra++;
+        }
+        extra = Math.min(extra, ExtraSpawnDriver.MAX_EXTRA_PER_SPAWN);
+        if (extra <= 0) {
+            return;
+        }
+
+        ServerLevel serverLevel = asServerLevel(level);
+        if (serverLevel == null) {
+            return;
+        }
+        if (PENDING.size() < MAX_PENDING) {
+            PENDING.add(new PendingExtra(serverLevel, mob.getType(), mob.blockPosition(), extra));
+        }
+        logOnce("probability", mob.getType(),
+                "queued " + extra + " extra spread out attempts, probability " + probability);
+    }
+
+    private static ServerLevel asServerLevel(LevelAccessor level) {
+        if (level instanceof ServerLevel serverLevel) {
+            return serverLevel;
+        }
+        if (level instanceof WorldGenRegion region) {
+            return region.getLevel();
+        }
+        return null;
+    }
+
+    /** Stamps an entity created inside a known world generation window; the join event may come later. */
+    public static void recordWorldgenCreated(Entity entity) {
+        if (entity != null && inKnownWorldgenSpawn()) {
+            WORLDGEN_CREATED.add(entity);
         }
     }
 
@@ -207,18 +307,7 @@ public final class NaturalSpawnHandler {
         }
 
         // probability > 1: keep this vanilla occurrence and create the missing ones ourselves.
-        int extra = Mth.floor(probability) - 1;
-        if (mob.getRandom().nextDouble() < (probability - Mth.floor(probability))) {
-            extra++;
-        }
-        extra = Math.min(extra, ExtraSpawnDriver.MAX_EXTRA_PER_SPAWN);
-        if (extra > 0 && event.getLevel() instanceof ServerLevel serverLevel) {
-            if (PENDING.size() < MAX_PENDING) {
-                PENDING.add(new PendingExtra(serverLevel, mob.getType(), mob.blockPosition(), extra));
-            }
-            logOnce("probability", mob.getType(),
-                    "queued " + extra + " extra spread out attempts, probability " + probability);
-        }
+        queueExtraSpawns(event.getLevel(), mob, probability);
         return false;
     }
 

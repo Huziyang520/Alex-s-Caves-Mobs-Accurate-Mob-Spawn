@@ -9,6 +9,8 @@
   },
   "mixins": [
     "MobSpawnOriginMixin",
+    "MobSpawnCheckMixin",
+    "EntityTypeCreateMixin",
     "AlexsCavesEggBlockMixin",
     "AlexsCavesRoostFeatureMixin"
   ]
