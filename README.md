@@ -271,6 +271,7 @@ Every config file is watched by the mod itself: **edit and save while the game i
 | The vanilla spawn cycle | **Yes** (`NATURAL`) |
 | World generation batch | **Yes** (`CHUNK_GENERATION`) |
 | **Alex's Caves' cave creature burst** (it runs its own loop while a chunk is generated instead of the vanilla cycle) | **Yes** (`CHUNK_GENERATION`) |
+| **Alex's Caves' roost feature and its world generated dinosaur eggs** (they create the mob without ever calling `finalizeSpawn`) | **Yes** - world generated eggs (`needs_player = true`) and roost spawns count as natural; eggs a player places or gets from breeding stay unaffected |
 | Structure spawns (and Alex's Caves' amber monolith) | **Yes** (`STRUCTURE` / `CHUNK_GENERATION`) |
 | Alex's Mobs' beached whale spawner | **No** (it passes `SPAWNER`) |
 | Any other mod's own spawn logic | follows the `MobSpawnType` it passes to `finalizeSpawn` |
@@ -680,6 +681,7 @@ type = "multiplier"
 | 原版刷怪循环刷出的 | ✅ 会（`NATURAL`） |
 | 世界生成期成群 | ✅ 会（`CHUNK_GENERATION`） |
 | **Alex's Caves 洞穴爆发**（区块生成时它自己跑一套循环，不走原版刷怪循环） | ✅ 会（`CHUNK_GENERATION`） |
+| **Alex's Caves 巢穴地物与"世界生成的恐龙蛋"**（它们创建生物时**不调 `finalizeSpawn`**） | ✅ 会（世界生成的蛋 `needs_player = true` 与巢穴生成按自然生成处理；玩家自己放的蛋/繁殖出的蛋不受影响） |
 | 结构生成（以及 Alex's Caves 琥珀独石） | ✅ 会（`STRUCTURE` / `CHUNK_GENERATION`） |
 | Alex's Mobs 搁浅抹香鲸刷怪器 | **不会**（它传的是 `SPAWNER`） |
 | 其它模组自己的刷怪逻辑 | 按它调用 `finalizeSpawn` 时传入的 `MobSpawnType` 判定 |

@@ -74,6 +74,9 @@ public final class NaturalSpawnHandler {
     /** Extra spawn work queued from world generation threads to run on the server thread. */
     private static final Queue<PendingExtra> PENDING = new ConcurrentLinkedQueue<>();
 
+    /** Depth of "a mob is being created by known world generation code" on this thread. */
+    private static final ThreadLocal<Integer> WORLDGEN_SPAWN_DEPTH = ThreadLocal.withInitial(() -> 0);
+
     private NaturalSpawnHandler() {
     }
 
@@ -86,6 +89,24 @@ public final class NaturalSpawnHandler {
 
     public static void beginModuleSpawn(Mob mob) {
         MODULE_SPAWNS.add(mob);
+    }
+
+    /**
+     * Marks the current thread as "inside a spawn performed by world generation code that we know of"
+     * (Alex's Caves' roost feature and its world generated dinosaur eggs create their mobs directly and
+     * never call {@code Mob#finalizeSpawn}, so no spawn type can be read from there).
+     */
+    public static void beginWorldgenSpawn() {
+        WORLDGEN_SPAWN_DEPTH.set(WORLDGEN_SPAWN_DEPTH.get() + 1);
+    }
+
+    public static void endWorldgenSpawn() {
+        int depth = WORLDGEN_SPAWN_DEPTH.get() - 1;
+        WORLDGEN_SPAWN_DEPTH.set(Math.max(0, depth));
+    }
+
+    private static boolean inKnownWorldgenSpawn() {
+        return WORLDGEN_SPAWN_DEPTH.get() > 0;
     }
 
     public static void endModuleSpawn(Mob mob) {
@@ -128,6 +149,17 @@ public final class NaturalSpawnHandler {
         }
 
         MobSpawnType origin = ORIGINS.remove(mob);
+        if (origin == null) {
+            if (inKnownWorldgenSpawn()) {
+                // Alex's Caves' roost feature and its world generated dinosaur eggs create the entity and
+                // add it directly, without ever calling Mob#finalizeSpawn. The flag is only raised inside
+                // those code paths, so this cannot leak onto other spawns.
+                origin = MobSpawnType.CHUNK_GENERATION;
+            } else if (MobRules.probabilityEnabled() && MobRules.probability(mob.getType()) != 1.0D) {
+                // Bounded diagnostic: tells us which mobs still arrive through a path with no spawn type.
+                logOnce("origin", mob.getType(), "created without a spawn type; probability not applied");
+            }
+        }
         if (!MODULE_SPAWNS.contains(mob) && applyProbability(event, mob, origin)) {
             return;
         }

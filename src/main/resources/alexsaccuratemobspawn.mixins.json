@@ -8,6 +8,8 @@
     "defaultRequire": 0
   },
   "mixins": [
-    "MobSpawnOriginMixin"
+    "MobSpawnOriginMixin",
+    "AlexsCavesEggBlockMixin",
+    "AlexsCavesRoostFeatureMixin"
   ]
 }
