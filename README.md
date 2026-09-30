@@ -165,6 +165,67 @@ Rules:
 - **New files are picked up automatically**, no restart needed (the folder is scanned every 2 seconds; renaming and deleting work the same way).
 - Unknown entity ids are ignored with a log warning and have no side effects.
 
+#### 3.4.1 Copy and paste examples
+
+```toml
+# 1. Zombies about three times as often. Other mobs are not touched.
+#    File: zz_my_zombie.toml
+type = "probability"
+
+[mobs]
+	"minecraft:zombie" = 3.0
+```
+
+```toml
+# 2. Creepers no longer spawn naturally (spawn eggs and commands still work).
+type = "probability"
+
+[mobs]
+	"minecraft:creeper" = 0.0
+```
+
+```toml
+# 3. Endermen about half as often.
+type = "probability"
+
+[mobs]
+	"minecraft:enderman" = 0.5
+```
+
+```toml
+# 4. Stacking: twice as many occurrences and four at a time.
+#    probability file:
+type = "probability"
+
+[mobs]
+	"minecraft:cow" = 2.0
+```
+```toml
+#    multiplier file (same folder, different file):
+type = "multiplier"
+
+[mobs]
+	"minecraft:cow" = 4.0
+```
+
+```toml
+# 5. Override a built in value: built in files load first, your files load last,
+#    so a late file name wins. Here tremorsaurus goes back to vanilla.
+type = "probability"
+
+[mobs]
+	"alexscaves:tremorsaurus" = 1.0
+```
+
+```toml
+# 6. Any mod works, just use the full registry name.
+type = "multiplier"
+
+[mobs]
+	"twilightforest:hydra" = 1.0
+	"iceandfire:dragon" = 0.0
+```
+
 #### 3.5 Checking that the rules really apply
 
 The mod prints **bounded** evidence (once per kind, never one line per spawn). Search the log for `alexsaccuratemobspawn`:
@@ -196,6 +257,38 @@ The mod prints **bounded** evidence (once per kind, never one line per spawn). S
 #### 3.7 Hot reload
 
 Every config file is watched by the mod itself: **edit and save while the game is running and it applies about a second later**, no restart. If a newly written file has a syntax error the mod keeps the last working configuration and prints a warning, so spawning never becomes uncontrollable.
+
+#### 3.8 Why it can look like nothing happened
+
+**Probability is applied to natural spawning only.** That is by design, and it is the reason it cannot affect any other mob:
+
+| How the mob appears | Does probability apply? |
+|---|---|
+| Spawn egg | **No** (`SPAWN_EGG`) |
+| `/summon`, command blocks | **No** (`COMMAND`) |
+| Mob spawner block | **No** (`SPAWNER`) |
+| Event / transformation spawn | **No** |
+| The vanilla spawn cycle | **Yes** |
+| World generation batch (includes Alex's Caves' cave burst) | **Yes** |
+| Structure spawns | **Yes** |
+
+**The multiplier applies to every source above** — so "the multiplier reacts immediately while probability appears dead" almost always means the test used a spawn egg or a command.
+
+Other common misreadings:
+
+1. **Probability above `1` needs a natural spawn of that mob as its anchor.** It only adds anything where the biome already spawns that mob and where it really got spawned naturally. Editing the value and then standing in the same old chunks shows nothing, because those spawns already happened.
+2. **The added individuals are placed by vanilla placement rules** (light, ground, collision, biome), so some attempts fail ⇒ the real increase can be smaller than the factor; hard limits are 100 added per spawn and 100 extra alive around the spawn point.
+3. **The built in probability files default to `1.0` everywhere** — save your edits, the mod reloads about a second later and logs `Config reloaded`.
+4. **`0 ~ 1` and a multiplier below `1` both make a mob rarer**: probability only affects natural spawning (spawn eggs and commands still work), the multiplier affects every source. Use the multiplier to remove a mob completely, probability to lower its natural spawn frequency.
+
+**How to test it properly (3 steps)**
+
+1. Use a **common vanilla mob** (zombie, cow or pig is easiest) and set it to `3.0`. **Do not use a spawn egg.**
+2. Walk into **chunks you have never generated** (travel far or `/tp`) and let the natural spawn cycle run for one to three minutes.
+3. Search the log for `Spawn probability for`:
+   - `queued 2 extra spread out attempts, probability 3.0` ⇒ two additional attempts per natural spawn (about 3× in total) ✅
+   - `voided every natural opportunity, probability 0.0` ⇒ that mob's natural opportunities are voided ✅
+   You should see the difference in game while **every other mob keeps its vanilla amount**.
 
 ### 4. Default supported mobs
 
@@ -473,6 +566,67 @@ type = "multiplier"
 - **新增文件也会被自动加载**，不用重启游戏（模组每 2 秒扫描一次配置目录，改名/删除同样生效）。
 - 未知生物 ID 不会报错，只会被忽略并在日志提醒。
 
+#### 3.4.1 直接抄用的示例
+
+```toml
+# 例 1：原版僵尸出现次数约 3 倍（其它生物不受影响）
+# 文件名：zz_my_zombie.toml
+type = "probability"
+
+[mobs]
+	"minecraft:zombie" = 3.0
+```
+
+```toml
+# 例 2：原版苦力怕不再自然生成（刷怪蛋、命令仍可用）
+type = "probability"
+
+[mobs]
+	"minecraft:creeper" = 0.0
+```
+
+```toml
+# 例 3：末影人出现次数减半
+type = "probability"
+
+[mobs]
+	"minecraft:enderman" = 0.5
+```
+
+```toml
+# 例 4：两功能叠加 —— 出现次数 2 倍、且一次生成 4 只
+# 概率文件：
+type = "probability"
+
+[mobs]
+	"minecraft:cow" = 2.0
+```
+```toml
+# 倍率文件（同目录、另一个文件）：
+type = "multiplier"
+
+[mobs]
+	"minecraft:cow" = 4.0
+```
+
+```toml
+# 例 5：覆盖内置文件里的值 —— 内置先加载、玩家文件后加载，靠后的文件名生效
+# 这里把撼地龙改回原版
+type = "probability"
+
+[mobs]
+	"alexscaves:tremorsaurus" = 1.0
+```
+
+```toml
+# 例 6：任意模组的生物，写完整注册名即可
+type = "multiplier"
+
+[mobs]
+	"twilightforest:hydra" = 1.0
+	"iceandfire:dragon" = 0.0
+```
+
 ### 3.5 确认规则是否真的生效
 
 模组会在日志里给出**有界**的证据（每类只打印一次，不会刷屏），可直接搜 `alexsaccuratemobspawn`：
@@ -509,6 +663,38 @@ type = "multiplier"
 
 所有配置文件都由模组自己监听：**在游戏运行时直接编辑保存，约 1 秒后自动生效**，不需要重启游戏。
 如果新写入的文件语法有误，模组会保留上一份可用的配置并打印告警，不会让生成变得不可控。
+
+### 3.8 为什么有时「看起来没生效」—— 常见误区与正确验证
+
+**概率只作用于自然生成**，这是设计如此，也是它"完全不影响别的生物"的前提：
+
+| 生物是怎么来的 | 概率会生效吗 |
+|---|---|
+| 刷怪蛋放下 | **不会**（`SPAWN_EGG`） |
+| `/summon`、命令方块 | **不会**（`COMMAND`） |
+| 刷怪笼方块 | **不会**（`SPAWNER`） |
+| 事件 / 实体转化产生 | **不会** |
+| 原版刷怪循环刷出的 | ✅ 会 |
+| 世界生成期成群（含 Alex's Caves 洞穴爆发） | ✅ 会 |
+| 结构生成 | ✅ 会 |
+
+**倍率对上表所有来源都生效** —— 所以"改了倍率立刻看到变化、改概率却没反应"，绝大多数情况是因为测试用的是刷怪蛋或命令。
+
+其它容易误判的点：
+
+1. **概率 `> 1` 需要"原版先自然生成它一次"作为锚点**：它只在该群系本来就刷这种生物、并且真的自然刷出来时才补足。改完数值后站在原地看同一片老区块是看不到变化的（那里早就刷完了）。
+2. **补出来的个体按原版规则另找位置**（光照 / 地面 / 碰撞 / 生物群系都要通过），被挡掉就少一个 ⇒ 实际增量可能少于 `p` 倍；硬上限是单次最多补 **100**、生成点周围额外存活最多 **100**。
+3. **内置概率文件默认全部是 `1.0`**，改完记得保存；模组约 1 秒热重载，日志会打印 `Config reloaded`。
+4. **概率 `0~1` 与倍率 `<1` 都会"变少"**：概率只管自然生成（刷怪蛋、命令仍可用），倍率管所有来源。想彻底禁掉用倍率 `0`；只想降低自然刷怪频率用概率。
+
+**正确验证方法（3 步）**
+
+1. 用**原版常见生物**做实验（僵尸、牛、猪最容易看到），写成 `3.0`；**不要用刷怪蛋**。
+2. 去**从未生成过的区块**（跑远一点或用 `/tp`），在那里等 1~3 分钟让它自然刷怪。
+3. 搜日志 `Spawn probability for`：
+   - `queued 2 extra spread out attempts, probability 3.0` ⇒ 每次自然生成额外补 2 次（合计约 3 倍）✅
+   - `voided every natural opportunity, probability 0.0` ⇒ 该生物的自然生成机会被作废 ✅
+   同时在游戏里应能看到数量变化，而**其它生物保持原版刷新量**。
 
 ---
 
