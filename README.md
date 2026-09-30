@@ -267,10 +267,13 @@ Every config file is watched by the mod itself: **edit and save while the game i
 | Spawn egg | **No** (`SPAWN_EGG`) |
 | `/summon`, command blocks | **No** (`COMMAND`) |
 | Mob spawner block | **No** (`SPAWNER`) |
-| Event / transformation spawn | **No** |
-| The vanilla spawn cycle | **Yes** |
-| World generation batch (includes Alex's Caves' cave burst) | **Yes** |
-| Structure spawns | **Yes** |
+| Event / summoning / transformation (Alex's Caves' gobthumper and licowitch, the giant squid made by lightning) | **No** (`MOB_SUMMONED`, `CONVERSION`) |
+| The vanilla spawn cycle | **Yes** (`NATURAL`) |
+| World generation batch | **Yes** (`CHUNK_GENERATION`) |
+| **Alex's Caves' cave creature burst** (it runs its own loop while a chunk is generated instead of the vanilla cycle) | **Yes** (`CHUNK_GENERATION`) |
+| Structure spawns (and Alex's Caves' amber monolith) | **Yes** (`STRUCTURE` / `CHUNK_GENERATION`) |
+| Alex's Mobs' beached whale spawner | **No** (it passes `SPAWNER`) |
+| Any other mod's own spawn logic | follows the `MobSpawnType` it passes to `finalizeSpawn` |
 
 **The multiplier applies to every source above** — so "the multiplier reacts immediately while probability appears dead" almost always means the test used a spawn egg or a command.
 
@@ -378,7 +381,7 @@ If the old file cannot be parsed the mod leaves it untouched and only logs the p
 #### 6.1 Boundaries (important)
 
 - **No other mob is ever affected.** Probability only voids this mob's own opportunities and, above `1`, creates the missing occurrences with the mod's own spawn library. The shared spawn list is never rewritten, no other mob's weight or entry is touched, and because nothing is replaced vanilla's own spawn validation cannot be disturbed either.
-- **Probability only affects natural spawning**: `NATURAL`, the world generation batch (`CHUNK_GENERATION`) and structure spawning (`STRUCTURE`). Spawn eggs, `/summon` and other commands, mob spawner blocks and event / transformation spawns are **not** affected.
+- **Probability only affects natural spawning**: the vanilla spawn cycle (`NATURAL`), the world generation batch and Alex's Caves' cave burst (`CHUNK_GENERATION`), and structure spawning including Alex's Caves' amber monolith (`STRUCTURE` / `CHUNK_GENERATION`). Spawn eggs, `/summon` and other commands, mob spawner blocks and event / summoning / transformation spawns (`MOB_SUMMONED`, `CONVERSION`, `SPAWNER`) are **not** affected. The origin is read from `Mob#finalizeSpawn`, so any other mod's own spawn logic is judged by the type it passes there.
 - **`> 1` creates real individuals**, so the population of that category does rise. Those individuals are excluded from the vanilla mob cap (as requested), which is exactly why every other mob keeps its full vanilla spawn rate — at the price that the world can hold more mobs than vanilla normally allows.
 - **Hard limits:** at most 100 extra individuals for one natural spawn and at most 100 extra individuals alive around the spawn point.
 - **`0 ~ 1` versus a multiplier below `1`:** both make the mob rarer. Probability voids natural opportunities only (spawn eggs and commands still work), the multiplier acts on *every* source. Keep both: probability for natural spawn frequency, the multiplier for "how many at once" or to hide a mob completely.
@@ -673,10 +676,13 @@ type = "multiplier"
 | 刷怪蛋放下 | **不会**（`SPAWN_EGG`） |
 | `/summon`、命令方块 | **不会**（`COMMAND`） |
 | 刷怪笼方块 | **不会**（`SPAWNER`） |
-| 事件 / 实体转化产生 | **不会** |
-| 原版刷怪循环刷出的 | ✅ 会 |
-| 世界生成期成群（含 Alex's Caves 洞穴爆发） | ✅ 会 |
-| 结构生成 | ✅ 会 |
+| 事件 / 召唤 / 实体转化（Alex's Caves 的尖啸锤、甘草女巫召唤物，闪电生成的巨型乌贼等） | **不会**（`MOB_SUMMONED`、`CONVERSION`） |
+| 原版刷怪循环刷出的 | ✅ 会（`NATURAL`） |
+| 世界生成期成群 | ✅ 会（`CHUNK_GENERATION`） |
+| **Alex's Caves 洞穴爆发**（区块生成时它自己跑一套循环，不走原版刷怪循环） | ✅ 会（`CHUNK_GENERATION`） |
+| 结构生成（以及 Alex's Caves 琥珀独石） | ✅ 会（`STRUCTURE` / `CHUNK_GENERATION`） |
+| Alex's Mobs 搁浅抹香鲸刷怪器 | **不会**（它传的是 `SPAWNER`） |
+| 其它模组自己的刷怪逻辑 | 按它调用 `finalizeSpawn` 时传入的 `MobSpawnType` 判定 |
 
 **倍率对上表所有来源都生效** —— 所以"改了倍率立刻看到变化、改概率却没反应"，绝大多数情况是因为测试用的是刷怪蛋或命令。
 
@@ -801,7 +807,8 @@ Alex's Mobs 的全部 116 个实体（含部件、投射物、载具）都已预
 ### 6.2 其它限制
 
 - 倍率 `> 1` 的“额外个体”是复制出来的新实体，不会继承原实体的装备、状态等生成上下文；对 Boss 设置大于 `1.0` 会同时出现多只 Boss，请谨慎。
-- **概率对不自然生成的生物无效**：结构/方块实体/蛋/事件/实体转化产生的生物（如暝煌龙、撼地斯拉、水雷守卫者、甘草女巫、姜饼人、窥心者、遗弃者，以及 Alex's Mobs 的复刻怪、灵魂鹫、骷髅剑鱼、地底矿工等）概率配置对其无效；但**倍率对它们仍然生效**。
+- **概率只作用于"自然来源"**：原版刷怪循环（`NATURAL`）、世界生成期成群与 **Alex's Caves 洞穴爆发**（`CHUNK_GENERATION`）、结构生成与琥珀独石（`STRUCTURE` / `CHUNK_GENERATION`）。刷怪蛋、`/summon`、刷怪笼、以及用 `MOB_SUMMONED` / `EVENT` / `CONVERSION` 生成的（如甘草女巫召唤物、尖啸锤召唤物、姜饼人、闪电生成的巨型乌贼、Alex's Mobs 的搁浅抹香鲸刷怪器）**不受概率影响**；但**倍率对它们仍然生效**。
+- **判据是"生成时传进来的类型"**：模组自己刷怪时传给 `finalizeSpawn` 的 `MobSpawnType` 决定它算不算自然生成 —— 这也是本模组能覆盖 Alex's Caves 洞穴爆发、Alex's Mobs 自带刷怪器等"绕过原版刷怪循环"的路径的原因。
 - 本模组**不改动任何生成权重**，因此与其它模组的刷怪设置互不干扰：Alex's Caves 的 `cave_creature_spawn_count_modifier`、Alex's Mobs 自带的权重都照原样生效。
 - 概率 `> 1` 是**补次数**而不是改权重，所以倍数是精确的：`10.0` 就是约十倍的出现次数（受硬上限与该区域可用刷怪点数量限制）。
 - **性能**：概率 `0 ~ 1` 只在生物加入世界时做一次判断；`> 1` 的补足任务入队后每 tick 最多执行 8 个、单次最多 100 个，不会瞬间堆积。

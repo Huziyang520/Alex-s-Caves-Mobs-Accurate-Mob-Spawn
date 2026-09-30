@@ -38,8 +38,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *       spawn library {@link ExtraSpawnDriver} as additional, spread out attempts.</li>
  * </ul>
  * Only natural spawns count ({@code NATURAL}, {@code CHUNK_GENERATION}, {@code STRUCTURE}); spawn eggs,
- * commands, spawner blocks and event / transformation spawns are never affected. Individuals created by
- * the library are marked so probability is not applied to them twice.
+ * commands, spawner blocks and event / transformation spawns are never affected. The origin is taken
+ * from the {@code Mob#finalizeSpawn} mixin, which also covers the spawns other mods perform on their own
+ * (Alex's Caves' cave burst uses {@code CHUNK_GENERATION}, Alex's Mobs' beached whale spawner uses
+ * {@code SPAWNER}), with Forge's {@code MobSpawnEvent.PositionCheck} as a mixin free second source.
+ * Individuals created by the library are marked so probability is not applied to them twice.
  *
  * <h2>2. Spawn multiplier (how many at once)</h2>
  * The original mod behaviour, untouched: {@code 0 < x < 1} keeps the entity with probability {@code x};
@@ -89,12 +92,30 @@ public final class NaturalSpawnHandler {
         MODULE_SPAWNS.remove(mob);
     }
 
-    @SubscribeEvent
-    public static void onFinalizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
-        Entity entity = event.getEntity();
-        if (entity != null) {
-            ORIGINS.put(entity, event.getSpawnType());
+    /**
+     * Records how a mob was spawned. Called from two places on purpose:
+     *
+     * <ol>
+     *   <li>the {@code Mob#finalizeSpawn} mixin - that is the only hook that also sees the spawns
+     *       performed by other mods themselves (Alex's Caves' cave burst, Alex's Mobs' beached whale
+     *       spawner, conversions, spawn eggs, commands), because every spawn path calls
+     *       {@code finalizeSpawn} with its {@link MobSpawnType};</li>
+     *   <li>Forge's {@code MobSpawnEvent.PositionCheck}, which fires inside the vanilla spawn cycle for
+     *       the runtime spawn pass, the world generation batch and structure spawns. It is kept as a
+     *       second, mixin free source, so the feature still works for vanilla spawning even if the mixin
+     *       could not be applied.</li>
+     * </ol>
+     */
+    public static void recordOrigin(Mob mob, MobSpawnType type) {
+        if (mob != null && type != null) {
+            ORIGINS.put(mob, type);
         }
+    }
+
+    @SubscribeEvent
+    public static void onPositionCheck(MobSpawnEvent.PositionCheck event) {
+        // getEntity() already returns the Mob for this event.
+        recordOrigin(event.getEntity(), event.getSpawnType());
     }
 
     @SubscribeEvent
