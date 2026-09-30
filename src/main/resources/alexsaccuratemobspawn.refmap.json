@@ -1,16 +1,6 @@
 {
-  "mappings": {
-    "com/Huziyang520/alexsaccuratemobspawn/mixin/MobSpawnSettingsMixin": {
-      "getMobs": "m_151798_",
-      "Lnet/minecraft/world/level/biome/MobSpawnSettings;getMobs(Lnet/minecraft/world/entity/MobCategory;)Lnet/minecraft/util/random/WeightedRandomList;": "Lnet/minecraft/world/level/biome/MobSpawnSettings;m_151798_(Lnet/minecraft/world/entity/MobCategory;)Lnet/minecraft/util/random/WeightedRandomList;"
-    }
-  },
+  "mappings": {},
   "data": {
-    "searge": {
-      "com/Huziyang520/alexsaccuratemobspawn/mixin/MobSpawnSettingsMixin": {
-        "getMobs": "m_151798_",
-        "Lnet/minecraft/world/level/biome/MobSpawnSettings;getMobs(Lnet/minecraft/world/entity/MobCategory;)Lnet/minecraft/util/random/WeightedRandomList;": "Lnet/minecraft/world/level/biome/MobSpawnSettings;m_151798_(Lnet/minecraft/world/entity/MobCategory;)Lnet/minecraft/util/random/WeightedRandomList;"
-      }
-    }
+    "searge": {}
   }
 }

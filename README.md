@@ -43,20 +43,22 @@ The multiplier is applied when the entity joins the level, so it covers **every 
 
 #### Probability in detail
 
-Probability applies to **natural spawning only**: the vanilla spawn cycle, the world generation batch, and structure spawning. These sources are deliberately **not** affected: spawn eggs, `/summon` and other commands, mob spawner blocks, event / transformation spawns.
+Probability is the **occurrence multiplier** of that mob's natural spawning, and one single rule covers every value:
 
-Two mechanisms internally, both perceived as "spawn frequency":
+> **expected natural spawns = vanilla occurrences × probability**
 
-| Value | Mechanism | Effect |
-|---|---|---|
-| `0.0` | every natural spawn opportunity of that mob is blocked | the mob stops spawning naturally |
-| `0 ~ 1` | each opportunity is kept with that probability, rolled independently | `0.5` ≈ half of the opportunities succeed |
-| `1.0` | no change | vanilla frequency |
-| `> 1` | the mob's weight in the biome spawn list is scaled up | `3.0` ≈ about triple frequency (approximate, not exact) |
+| Value | Effect |
+|---|---|
+| `0.0` | every natural spawn opportunity of this mob is voided — it stops spawning naturally |
+| `0 ~ 1` | each opportunity this mob already won survives with that probability, the rest are voided |
+| `1.0` | no change, vanilla frequency |
+| `> 1` | the vanilla occurrence is kept and the missing occurrences are created by the mod's own spawn library |
 
-- The `0 ~ 1` decision happens when the mob is about to join the level and **never modifies the vanilla spawn lists**, so it cannot shift the odds of any other mob and cannot interfere with vanilla's own spawn validation.
-- The `> 1` boost applies to **biome spawn lists** (including the world generation batch and Alex's Caves' cave burst). Structure `spawn_overrides` and the nether fortress list are not scaled, but the `0 ~ 1` blocking still applies to them.
-- Extra individuals created by a multiplier above `1.0` are not affected by probability (they are a multiplier effect).
+- **No other mob is affected, ever.** A voided opportunity is simply discarded — it is never handed to another mob — and the added occurrences are produced by the mod itself instead of rewriting the shared spawn list. No other mob's weight, entry or behaviour is touched at all.
+- **Added occurrences are spread out, not copies.** Each one is an independent vanilla style attempt: a random direction and a random distance of 8–48 blocks around the original spawn, validated exactly like a natural spawn (the biome must really list this mob, the placement rules must pass, the spot must be free). Zombies at `10.0` therefore appear in roughly 10× as many places, scattered just like vanilla spawns.
+- **Hard limits:** at most 100 extra individuals for a single natural spawn (the configured value itself caps at 100, so at most 99 are ever used) and at most 100 extra individuals alive around the spawn point. The added individuals do **not** count towards the vanilla mob cap, so the vanilla spawn cycle keeps giving every other mob its full, unchanged share.
+- Only natural spawns count: `NATURAL`, `CHUNK_GENERATION` and `STRUCTURE`. Spawn eggs, `/summon` and other commands, mob spawner blocks and event / transformation spawns are never affected.
+- Individuals created this way are not processed by probability a second time (no doubling), but they **are** handled by the multiplier, so the two features stack independently.
 
 ### 2. Installing
 
@@ -170,9 +172,9 @@ The mod prints **bounded** evidence (once per kind, never one line per spawn). S
 | Log line | Meaning |
 |---|---|
 | `Config reloaded (startup): 159 spawn settings, 159 probability settings, switches[...]` | how many rules were read and the state of the three switches |
-| `Applied spawn frequency boosts (probability > 1) to a spawn list of 8 entries` | a probability above `1` was applied (once per spawn list and reload) |
-| `Spawn probability for <mob>: blocked natural spawn, probability 0.0` | probability `0`: the natural spawn was blocked |
-| `Spawn probability for <mob>: dropped natural spawn, probability 0.5` | probability `< 1`: this opportunity was dropped |
+| `Spawn probability for <mob>: queued N extra spread out attempts, probability 10.0` | probability above `1`: the missing occurrences were queued (once per mob and reload) |
+| `Spawn probability for <mob>: voided this opportunity, probability 0.5` | probability below `1`: this opportunity was voided |
+| `Spawn probability for <mob>: voided every natural opportunity, probability 0.0` | probability `0`: the mob no longer spawns naturally |
 | `Spawn multiplier for <mob>: spawning extra copies, multiplier 10.0` | the multiplier applied to that mob (once per mob and reload) |
 | `Spawn multiplier for <mob>: blocked every spawn, multiplier 0.0` | multiplier `0`: the mob is blocked completely |
 | `Config: <file>: ...` | one warning per broken config entry |
@@ -187,8 +189,8 @@ The mod prints **bounded** evidence (once per kind, never one line per spawn). S
    	"minecraft:pig" = 0.0
    	"minecraft:cow" = 3.0
    ```
-2. Start the game and search the log as described in 3.5: you should see `blocked natural spawn, probability 0.0` for the pig and `Applied spawn frequency boosts ...` for the cow, and you should **not** see thousands of repeated lines.
-3. Walk into a biome you have never visited: pigs no longer appear on their own (spawn eggs still work), cows appear noticeably more often.
+2. Start the game and search the log as described in 3.5: for the pig you should see `Spawn probability for minecraft:pig: voided every natural opportunity, probability 0.0` and for the cow `Spawn probability for minecraft:cow: queued 2 extra spread out attempts, probability 3.0`.
+3. Walk into a biome you have never visited: pigs no longer appear on their own (spawn eggs still work), cows appear in roughly three times as many places and spread out, while every other mob keeps its vanilla rate.
 4. Reverse test: set `minecraft:pig = 1.0` and `minecraft:cow = 0.0`, wait a second for the hot reload, then check freshly generated chunks again.
 
 #### 3.7 Hot reload
@@ -282,20 +284,21 @@ If the old file cannot be parsed the mod leaves it untouched and only logs the p
 
 #### 6.1 Boundaries (important)
 
-- **Probability only affects natural spawning**, and only three sources count as natural: the vanilla spawn cycle (`NATURAL`), the world generation batch (`CHUNK_GENERATION`) and structure spawning (`STRUCTURE`). Spawn eggs, `/summon` and other commands, mob spawner blocks and event / transformation spawns are **not** affected.
-- **`0 ~ 1` never touches the vanilla spawn lists.** It blocks the mob while it is about to join the level, so it cannot change the odds of other mobs in the same list and cannot interfere with vanilla's own spawn-table validation. (This is the core of the 0.0.4 fix.)
-- **`> 1` only scales biome spawn lists.** Structure `spawn_overrides` and the nether fortress list are not scaled, but the `0 ~ 1` blocking still applies to them.
-- **`> 1` takes weight away from the others.** Raising one mob lowers the relative share of the other mobs in the same spawn list. That is inherent to "frequency", not a bug.
-- **Extra individuals created by the multiplier are not filtered by probability** (they are a multiplier effect).
+- **No other mob is ever affected.** Probability only voids this mob's own opportunities and, above `1`, creates the missing occurrences with the mod's own spawn library. The shared spawn list is never rewritten, no other mob's weight or entry is touched, and because nothing is replaced vanilla's own spawn validation cannot be disturbed either.
+- **Probability only affects natural spawning**: `NATURAL`, the world generation batch (`CHUNK_GENERATION`) and structure spawning (`STRUCTURE`). Spawn eggs, `/summon` and other commands, mob spawner blocks and event / transformation spawns are **not** affected.
+- **`> 1` creates real individuals**, so the population of that category does rise. Those individuals are excluded from the vanilla mob cap (as requested), which is exactly why every other mob keeps its full vanilla spawn rate — at the price that the world can hold more mobs than vanilla normally allows.
+- **Hard limits:** at most 100 extra individuals for one natural spawn and at most 100 extra individuals alive around the spawn point.
+- **`0 ~ 1` versus a multiplier below `1`:** both make the mob rarer. Probability voids natural opportunities only (spawn eggs and commands still work), the multiplier acts on *every* source. Keep both: probability for natural spawn frequency, the multiplier for "how many at once" or to hide a mob completely.
+- **Extra individuals created by the multiplier are not filtered by probability**, and individuals created by probability go through the multiplier normally — that is what makes the two features independent and stackable.
 - **Mobs already in the world never disappear** because of a config change. Test in chunks you have never generated, or wait until the old mobs despawn.
-- `0 ~ 1` is an **exact per-opportunity probability** (`0.5` ≈ half of the opportunities succeed); `> 1` internally scales weights with a 256× factor, so `3.0` means roughly triple. To disable a mob completely write `0.0` — `0.001` is close to zero but not zero.
+- `1.0` means untouched; a very small non-zero value (`0.001`) means "almost never" rather than exactly never — write `0.0` to remove a mob from natural spawning completely.
 - The configuration is **global**, not per world, and both client and server need the mod installed.
 
 #### 6.2 Other limits
 
 - Extra individuals from a multiplier above `1.0` are copies of the entity; they do not inherit equipment or spawn context, and using `> 1` on a boss spawns several bosses at once — use with care.
-- When several mods change spawn weights (Alex's Caves' own `cave_creature_spawn_count_modifier`, Alex's Mobs' own `alexsmobs.toml` weights) this mod scales *on top of their result*, so the effects stack.
-- Probability `> 1` uses a 256× internal scale; increments below `1/256` may be lost. Use `1.5` or more for a visible increase.
+- This mod changes no spawn weight at all, so it does not interfere with other mods' spawn settings: Alex's Caves' `cave_creature_spawn_count_modifier` and Alex's Mobs' own weights keep working exactly as they do without this mod.
+- Probability `> 1` adds occurrences instead of changing weights, so the factor is exact: `10.0` really is about ten times as many occurrences (bounded by the hard limits and by how many valid spots the area offers).
 - This mod **does not modify world/save data** and can be removed at any time.
 
 ### 7. License and feedback
@@ -345,21 +348,22 @@ If the old file cannot be parsed the mod leaves it untouched and only logs the p
 
 ### 概率的具体行为
 
-概率作用于**自然生成**：原版刷怪循环、世界生成期的成群生成、以及结构生成。
-以下来源**不受概率影响**（这是有意的）：刷怪蛋、`/summon` 等命令、刷怪笼方块、事件/转化召唤。
+概率 = 这只生物自然生成的**次数倍率**，一条规则覆盖所有取值：
 
-内部按数值分两种机制，观感上都是「生成频率」：
+> **期望自然生成次数 = 原版次数 × 概率值**
 
-| 取值 | 实现方式 | 效果 |
-|---|---|---|
-| `0.0` | 每次自然生成机会都拦下该生物 | 该生物不再自然生成 |
-| `0 ~ 1` | 每次自然生成机会以该概率保留，逐次独立判定 | `0.5` ≈ 一半的生成机会成功 |
-| `1.0` | 不干预 | 原版频率 |
-| `> 1` | 放大该生物在群系生成表里的权重 | `3.0` ≈ 约三倍频率（约数，不是精确三倍） |
+| 取值 | 效果 |
+|---|---|
+| `0.0` | 它的自然生成机会全部作废 —— 不再自然生成 |
+| `0 ~ 1` | 它**已经拿到的**每次机会按该概率保留，其余作废 |
+| `1.0` | 不干预，原版频率 |
+| `> 1` | 原版那一次照常生成，缺的次数由模组**自建生成通道**补出来 |
 
-- `0 ~ 1` 的拦截发生在「生物即将加入世界」这一层，**完全不改动原版生成表**，因此不影响其它生物的权重，也不可能干扰原版的生成校验。
-- `> 1` 的加权只作用于**群系生成表**（含世界生成期成群与 Alex's Caves 的洞穴爆发）；结构 `spawn_overrides` 与下界要塞的生成表不会被放大，但 `0 ~ 1` 的拦截对它们**仍然生效**。
-- 倍率 `> 1` 复制出来的额外个体不会再被概率拦截（它们属于倍率效果）。
+- **完全不影响任何其它生物**：作废的机会不会被转给别的生物；补出来的次数由模组自己生成、**不改原版生成表**，其它生物的权重、条目、行为一个都不动。
+- **补出来的是"分散出现"，不是"贴身复制"**：每次都是独立的、原版风格的刷怪尝试 —— 在原生成点周围 **8~48 格**随机方向、随机距离选点，并按原版规则校验（该群系必须真的列出这只生物、放置规则必须通过、地面必须空闲）。所以僵尸 `10.0` 的效果是"**约 10 倍多的刷怪位置**"，分布和原版自己刷怪一样分散。
+- **硬上限**：单次生成最多补 **100** 个（概率值本身上限 100，实际最多补 99 次）；生成点周围额外存活的个体最多 **100** 个。补出来的个体**不计入原版刷怪上限**，因此原版给其它所有生物的刷怪机会一点不变。
+- 概率只作用于**自然生成**（`NATURAL` / `CHUNK_GENERATION` / `STRUCTURE`）；刷怪蛋、`/summon` 等命令、刷怪笼方块、事件/转化召唤不受影响。
+- 补出来的个体不会被概率二次处理（不会套娃），但**会正常被倍率处理**，因此两功能独立叠加。
 
 ---
 
@@ -476,9 +480,9 @@ type = "multiplier"
 | 日志行 | 含义 |
 |---|---|
 | `Config reloaded (startup): 159 spawn settings, 159 probability settings, switches[...]` | 读到了多少条规则、三个开关的状态 |
-| `Applied spawn frequency boosts (probability > 1) to a spawn list of 8 entries` | 概率 `> 1` 的加权已生效（每次重载后每个生成表只打一次） |
-| `Spawn probability for <生物>: blocked natural spawn, probability 0.0` | 概率 `0`，该生物的自然生成被拦下 |
-| `Spawn probability for <生物>: dropped natural spawn, probability 0.5` | 概率 `< 1`，这一次自然生成机会按概率被丢弃 |
+| `Spawn probability for <生物>: queued N extra spread out attempts, probability 10.0` | 概率 `> 1`：缺的次数已排队由自建通道补足（每次重载后每类只打一次） |
+| `Spawn probability for <生物>: voided this opportunity, probability 0.5` | 概率 `< 1`：这一次机会被作废 |
+| `Spawn probability for <生物>: voided every natural opportunity, probability 0.0` | 概率 `0`：该生物不再自然生成 |
 | `Spawn multiplier for <生物>: spawning extra copies, multiplier 10.0` | 倍率对该生物生效（每次重载后每类只打一次） |
 | `Spawn multiplier for <生物>: blocked every spawn, multiplier 0.0` | 倍率为 `0`，该生物被彻底拦下 |
 | `Config: <文件>: ...` | 配置写错时的逐条告警 |
@@ -496,9 +500,9 @@ type = "multiplier"
    	"minecraft:pig" = 0.0
    	"minecraft:cow" = 3.0
    ```
-2. 进游戏后按 3.5 搜日志：应出现猪的 `blocked natural spawn, probability 0.0` 与牛的 `Applied spawn frequency boosts ...`；
-   并确认**没有**出现成千上万条重复日志。
-3. 去从未生成过的群系：猪不再自己出现（刷怪蛋仍能刷出），牛明显变多。
+2. 进游戏后按 3.5 搜日志：猪应出现 `Spawn probability for minecraft:pig: voided every natural opportunity, probability 0.0`，
+   牛应出现 `Spawn probability for minecraft:cow: queued 2 extra spread out attempts, probability 3.0`。
+3. 去从未生成过的群系：猪不再自己出现（刷怪蛋仍能刷出）；牛在约三倍多的位置**分散**出现，其它生物保持原版刷新量。
 4. 反向测试：把猪改成 `1.0`、牛改成 `0.0`，等约 1 秒热重载后再去新区块观察。
 
 ### 3.7 热重载
@@ -598,22 +602,23 @@ Alex's Mobs 的全部 116 个实体（含部件、投射物、载具）都已预
 
 ### 6.1 边界（重要）
 
-- **概率只作用于自然生成**，且只认三种来源：原版刷怪循环（`NATURAL`）、世界生成期成群（`CHUNK_GENERATION`）、结构生成（`STRUCTURE`）。刷怪蛋、`/summon` 等命令、**刷怪笼方块**、事件/转化召唤**不受概率影响**。
-- **概率 `0 ~ 1` 完全不碰原版生成表**：它是在「生物即将加入世界」时按概率拦截，所以不会改变同一张表里其它生物的权重，也不可能干扰原版对生成表的校验（这正是 0.0.4 修复的核心）。
-- **概率 `> 1` 只放大群系生成表**：结构 `spawn_overrides` 与下界要塞的生成表不会被放大；但 `0 ~ 1` 的拦截对它们**仍然生效**。
-- **概率 `> 1` 是「抢占权重」**：把某只生物调高，同一张生成表里其它生物的**相对占比会下降**。这是「频率」语义的必然结果，不是 bug。
-- **倍率复制出的额外个体不受概率拦截**（它们属于倍率效果）。
+- **完全不影响任何其它生物**：概率只作废它**自己**的机会；`> 1` 时缺的次数由模组**自建生成通道**补出来。原版生成表从头到尾没有被改写，别的生物的权重/条目一个都不动；因为什么都没被替换，也不可能干扰原版自己的生成校验。
+- **概率只作用于自然生成**：`NATURAL`、世界生成期成群（`CHUNK_GENERATION`）、结构生成（`STRUCTURE`）。刷怪蛋、`/summon` 等命令、**刷怪笼方块**、事件/转化召唤**不受概率影响**。
+- **`> 1` 补出来的是真实个体**，因此该类别的生物总量确实会上升。这些个体**不计入原版刷怪上限**（按你选的路线乙），这正是"其它生物保持原版刷怪量"的原因 —— 代价是世界里能容纳的生物总量会超过原版允许值。
+- **硬上限**：单次自然生成最多补 **100** 个；生成点周围额外存活的个体最多 **100** 个。
+- **`0 ~ 1` 与倍率 `<1` 的关系**：两者都会让生物更少见。概率只作废自然生成机会（刷怪蛋、命令照常可用），倍率作用于**所有来源**。建议都保留：概率用于"自然刷怪频率"，倍率用于"一次几只"或"彻底禁掉"。
+- **倍率复制出的额外个体不受概率过滤**；概率补出来的个体**会正常被倍率处理** —— 这正是两功能独立且可叠加的原因。
 - **已经在世界里的生物不会因为改配置而消失**：验证请去**未生成过的区块**，或等旧生物被清除后再观察。
-- `0 ~ 1` 是**精确的逐次概率**（`0.5` ≈ 一半机会成功）；`> 1` 内部按 256 倍放大权重，`3.0` 表示约三倍；想彻底禁用请直接写 `0.0`（写 `0.001` 只是接近 0，并不等于 0）。
+- `1.0` = 不干预；很小的非零值（`0.001`）表示"几乎不出现"而不是"完全不出现"；要彻底禁用请写 `0.0`。
 - 配置是**全局的**（不随存档），单人/服务器都需要安装本模组。
 
 ### 6.2 其它限制
 
 - 倍率 `> 1` 的“额外个体”是复制出来的新实体，不会继承原实体的装备、状态等生成上下文；对 Boss 设置大于 `1.0` 会同时出现多只 Boss，请谨慎。
 - **概率对不自然生成的生物无效**：结构/方块实体/蛋/事件/实体转化产生的生物（如暝煌龙、撼地斯拉、水雷守卫者、甘草女巫、姜饼人、窥心者、遗弃者，以及 Alex's Mobs 的复刻怪、灵魂鹫、骷髅剑鱼、地底矿工等）概率配置对其无效；但**倍率对它们仍然生效**。
-- 概率 `> 1` 内部做了 256 倍放大以获得精度，`1/256` 以下的增量可能被抹平；需要明显提高频率请用 `1.5` 以上。
-- 多个模组同时改动生成权重时（例如 Alex's Caves 自带的 `cave_creature_spawn_count_modifier`、Alex's Mobs 自带的 `alexsmobs.toml` 生成权重），本模组是在它们的最终结果之上再做缩放，数值效果会叠加。
-- **性能**：概率 `0 ~ 1` 只在生物加入世界时做一次判断，不产生任何列表改动；概率 `> 1` 每个生成表在每次配置版本下只重建一次。
+- 本模组**不改动任何生成权重**，因此与其它模组的刷怪设置互不干扰：Alex's Caves 的 `cave_creature_spawn_count_modifier`、Alex's Mobs 自带的权重都照原样生效。
+- 概率 `> 1` 是**补次数**而不是改权重，所以倍数是精确的：`10.0` 就是约十倍的出现次数（受硬上限与该区域可用刷怪点数量限制）。
+- **性能**：概率 `0 ~ 1` 只在生物加入世界时做一次判断；`> 1` 的补足任务入队后每 tick 最多执行 8 个、单次最多 100 个，不会瞬间堆积。
 - 本模组**不修改存档数据**，可以随时卸载；卸载后生成完全回到原版与各模组自己的行为。
 
 ---

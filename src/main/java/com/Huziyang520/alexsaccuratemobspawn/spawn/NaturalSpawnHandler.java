@@ -4,38 +4,47 @@ import com.Huziyang520.alexsaccuratemobspawn.alexsaccuratemobspawn;
 import com.Huziyang520.alexsaccuratemobspawn.config.MobRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The single place where a mob's entry into the world is judged.
  *
  * <h2>1. Spawn probability (frequency)</h2>
- * Natural spawns only. Below {@code 1.0} the attempt is accepted with exactly that probability, so
- * {@code 0.5} really is about half as many spawns and {@code 0.0} removes the mob from natural spawning
- * entirely - while spawn eggs, commands, dispensers, mob spawners and transformations stay untouched.
- * This is a per attempt decision at a point that is consumed exactly once, so no vanilla spawn list is
- * ever rewritten for it. Values above {@code 1.0} are handled by boosting the biome's weights
- * ({@link SpawnWeightScaler}), not here.
+ * Expectation of a natural spawn = {@code original occurrences × probability}, one rule for every value,
+ * and <b>without touching any other mob</b>:
+ * <ul>
+ *   <li>{@code 1.0}: nothing.</li>
+ *   <li>{@code 0 < p < 1}: an opportunity this mob already won is kept with probability {@code p}, the
+ *       rest are voided. A voided opportunity is not handed to anybody else, so no other mob changes.</li>
+ *   <li>{@code 0}: every natural opportunity of this mob is voided.</li>
+ *   <li>{@code p > 1}: the vanilla occurrence is kept and the missing occurrences are created by our own
+ *       spawn library {@link ExtraSpawnDriver} as additional, spread out attempts.</li>
+ * </ul>
+ * Only natural spawns count ({@code NATURAL}, {@code CHUNK_GENERATION}, {@code STRUCTURE}); spawn eggs,
+ * commands, spawner blocks and event / transformation spawns are never affected. Individuals created by
+ * the library are marked so probability is not applied to them twice.
  *
  * <h2>2. Spawn multiplier (how many at once)</h2>
- * The original mod behaviour, unchanged:
- * <ul>
- *   <li>{@code 0 < x < 1}: the entity is kept with probability {@code x}, otherwise the spawn is cancelled.</li>
- *   <li>{@code x = 0}: the spawn is always cancelled.</li>
- *   <li>{@code x > 1}: {@code floor(x) - 1} extra copies are added around the original, plus one more with
- *       the probability of the fractional part, capped at {@value #MAX_EXTRA_COPIES} per entity.</li>
- * </ul>
+ * The original mod behaviour, untouched: {@code 0 < x < 1} keeps the entity with probability {@code x};
+ * {@code x = 0} always cancels; {@code x > 1} adds {@code floor(x) - 1} copies plus a fractional one,
+ * capped at {@value #MAX_EXTRA_COPIES}. The two features are independent and their effects multiply.
  */
 @Mod.EventBusSubscriber(modid = alexsaccuratemobspawn.MOD_ID)
 public final class NaturalSpawnHandler {
@@ -46,12 +55,21 @@ public final class NaturalSpawnHandler {
     /** Guards against the copies of a copy being multiplied again. */
     private static final ThreadLocal<Boolean> SPAWNING_EXTRA = ThreadLocal.withInitial(() -> false);
 
-    /**
-     * How each mob was spawned, taken from Forge's {@code MobSpawnEvent.FinalizeSpawn}. Weak keys, and
-     * entries are removed when the mob joins, so nothing is retained after the spawn completed.
-     */
+    /** Upper bound for queued extra spawn work, so a burst can never pile up without limit. */
+    private static final int MAX_PENDING = 4096;
+
+    /** How many queued extra spawn tasks run per server tick. */
+    private static final int PENDING_PER_TICK = 8;
+
+    /** How each mob was spawned; weak keys, removed when the mob joins. */
     private static final Map<Entity, MobSpawnType> ORIGINS =
             Collections.synchronizedMap(new WeakHashMap<>());
+
+    /** Mobs currently created by our own spawn library; they must not be judged again. */
+    private static final Set<Entity> MODULE_SPAWNS = Collections.synchronizedSet(new HashSet<>());
+
+    /** Extra spawn work queued from world generation threads to run on the server thread. */
+    private static final Queue<PendingExtra> PENDING = new ConcurrentLinkedQueue<>();
 
     private NaturalSpawnHandler() {
     }
@@ -61,6 +79,14 @@ public final class NaturalSpawnHandler {
         return type == MobSpawnType.NATURAL
                 || type == MobSpawnType.CHUNK_GENERATION
                 || type == MobSpawnType.STRUCTURE;
+    }
+
+    public static void beginModuleSpawn(Mob mob) {
+        MODULE_SPAWNS.add(mob);
+    }
+
+    public static void endModuleSpawn(Mob mob) {
+        MODULE_SPAWNS.remove(mob);
     }
 
     @SubscribeEvent
@@ -80,13 +106,25 @@ public final class NaturalSpawnHandler {
             return;
         }
 
-        // Read and clear: this entity is judged exactly once, when it first enters the world.
         MobSpawnType origin = ORIGINS.remove(mob);
-        if (applyProbability(event, mob, origin)) {
+        if (!MODULE_SPAWNS.contains(mob) && applyProbability(event, mob, origin)) {
             return;
         }
-
         applyMultiplier(event, mob);
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        for (int i = 0; i < PENDING_PER_TICK; i++) {
+            PendingExtra task = PENDING.poll();
+            if (task == null) {
+                return;
+            }
+            ExtraSpawnDriver.spawnExtra(task.level, task.type, task.anchor, task.count);
+        }
     }
 
     /** @return true when the spawn was rejected, so the multiplier must not run either. */
@@ -96,19 +134,37 @@ public final class NaturalSpawnHandler {
         }
 
         double probability = MobRules.probability(mob.getType());
-        if (probability >= 1.0D) {
+        if (probability == 1.0D) {
             return false;
         }
 
         if (probability <= 0.0D) {
-            logOnce("probability", mob.getType(), "blocked natural spawn, probability " + probability);
+            logOnce("probability", mob.getType(), "voided every natural opportunity, probability " + probability);
             event.setCanceled(true);
             return true;
         }
-        if (mob.getRandom().nextDouble() >= probability) {
-            logOnce("probability", mob.getType(), "dropped natural spawn, probability " + probability);
-            event.setCanceled(true);
-            return true;
+
+        if (probability < 1.0D) {
+            if (mob.getRandom().nextDouble() >= probability) {
+                logOnce("probability", mob.getType(), "voided this opportunity, probability " + probability);
+                event.setCanceled(true);
+                return true;
+            }
+            return false;
+        }
+
+        // probability > 1: keep this vanilla occurrence and create the missing ones ourselves.
+        int extra = Mth.floor(probability) - 1;
+        if (mob.getRandom().nextDouble() < (probability - Mth.floor(probability))) {
+            extra++;
+        }
+        extra = Math.min(extra, ExtraSpawnDriver.MAX_EXTRA_PER_SPAWN);
+        if (extra > 0 && event.getLevel() instanceof ServerLevel serverLevel) {
+            if (PENDING.size() < MAX_PENDING) {
+                PENDING.add(new PendingExtra(serverLevel, mob.getType(), mob.blockPosition(), extra));
+            }
+            logOnce("probability", mob.getType(),
+                    "queued " + extra + " extra spread out attempts, probability " + probability);
         }
         return false;
     }
@@ -139,7 +195,6 @@ public final class NaturalSpawnHandler {
         if (SPAWNING_EXTRA.get()) {
             return;
         }
-
         if (event.getLevel() instanceof ServerLevel serverLevel) {
             SPAWNING_EXTRA.set(true);
             try {
@@ -181,14 +236,16 @@ public final class NaturalSpawnHandler {
                 }
                 continue;
             }
-
             double x = pos.getX() + 0.5D + (level.random.nextDouble() - 0.5D) * 2.0D;
             double y = pos.getY() + 0.5D;
             double z = pos.getZ() + 0.5D + (level.random.nextDouble() - 0.5D) * 2.0D;
             newMob.setPos(x, y, z);
             newMob.setYRot(level.random.nextFloat() * 360.0F);
-
             level.addFreshEntity(newMob);
         }
+    }
+
+    /** One unit of queued extra spawn work. */
+    private record PendingExtra(ServerLevel level, EntityType<?> type, BlockPos anchor, int count) {
     }
 }
