@@ -10,118 +10,144 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Applies the probability rules to a vanilla spawn list.
+ * Spawn frequency boosts: probabilities above {@code 1.0} are applied by scaling the weights of the
+ * biome's spawn list, because the vanilla spawn cycle picks the mob from that weighted list.
  *
- * <p>Probability means "spawn frequency": instead of blocking an entity after it was created, the
- * weight of the matching entries inside the {@link MobSpawnSettings.SpawnerData} list that vanilla
- * uses to pick a mob is scaled. A weight of 0 removes the entry from the list, which is how
- * probability {@code 0.0} disables a mob.</p>
+ * <p>Probabilities below {@code 1.0} are deliberately NOT handled here - they are enforced once per
+ * spawn attempt by {@link NaturalSpawnHandler}, which leaves the vanilla lists completely untouched for
+ * the common "reduce or disable" case.</p>
  *
- * <p>All entries are multiplied by the same {@link #SCALE} factor before rounding, which keeps the
- * relative odds between unconfigured entries intact and still gives {@code 1/SCALE} resolution for
- * probabilities below 1.</p>
- *
- * <p>The vanilla lists are shared, cached instances, so they are never mutated: a brand new list with
- * brand new {@code SpawnerData} objects is built instead.</p>
+ * <h2>Why the identity contract is the whole ball game</h2>
+ * Vanilla revalidates the mob it just picked with {@code mobsAt(...).unwrap().contains(data)}, and
+ * {@code SpawnerData} has no {@code equals}, so that is pure reference equality. A rebuilt list is only
+ * safe if the biome hands out <b>the same object</b> to both the selection and the revalidation inside
+ * one spawn attempt. Therefore:
+ * <ul>
+ *   <li>the rebuilt list is <b>stored in the cache before it is returned</b>, so the second call of the
+ *       same attempt already hits the cache and sees the identical object;</li>
+ *   <li>the cache is keyed by the identity of the vanilla list and is only cleared when the
+ *       configuration revision changes, which happens outside the hot path;</li>
+ *   <li>whenever the cache cannot be used (bound reached, weights would overflow), the <b>original
+ *       vanilla list is returned</b>. The worst case is then "the boost does not apply", never
+ *       "mobs stop spawning".</li>
+ * </ul>
  */
 public final class SpawnWeightScaler {
 
-    /** Extra resolution for probabilities below 1. 1/256 = 0.4%. */
+    /** Extra resolution for fractional boosts. 1/256 = 0.4%. */
     private static final int SCALE = 256;
 
     /** Keep the summed weight of a rebuilt list well below {@link Integer#MAX_VALUE}. */
     private static final long MAX_TOTAL_WEIGHT = 1L << 30;
 
+    /**
+     * Only a few hundred distinct lists exist (one per biome and category, plus structure overrides),
+     * so this bound is never reached in practice. If it ever is, boosts are switched off rather than
+     * handing vanilla a list it cannot revalidate.
+     */
     private static final int MAX_CACHE_ENTRIES = 8192;
 
-    private static final Map<WeightedRandomList<MobSpawnSettings.SpawnerData>, Cached> CACHE =
+    private static final Map<WeightedRandomList<MobSpawnSettings.SpawnerData>, WeightedRandomList<MobSpawnSettings.SpawnerData>> CACHE =
             Collections.synchronizedMap(new IdentityHashMap<>());
 
-    /** Identity set of the lists this class produced, so they are never scaled a second time. */
-    private static final Set<WeightedRandomList<MobSpawnSettings.SpawnerData>> PRODUCED =
-            Collections.newSetFromMap(Collections.synchronizedMap(new IdentityHashMap<>()));
-
     private static volatile int cachedRevision = -1;
+
+    /** Set when the cache became unusable; boosts are then skipped instead of rebuilt per call. */
+    private static volatile boolean disabled;
 
     private SpawnWeightScaler() {
     }
 
     /**
-     * True when {@code list} was produced by {@link #scale} and therefore already carries the
-     * probability rules. Used by the {@code NaturalSpawner} hook to avoid scaling the biome list a
-     * second time after the {@code MobSpawnSettings} hook already handled it.
+     * @return the list vanilla should use: the boosted list (always the same object for the same input
+     *     and revision), or {@code original} when nothing has to change or the boost cannot be applied.
      */
-    public static boolean isProduced(WeightedRandomList<MobSpawnSettings.SpawnerData> list) {
-        return PRODUCED.contains(list);
-    }
-
-    public static WeightedRandomList<MobSpawnSettings.SpawnerData> scale(
+    public static WeightedRandomList<MobSpawnSettings.SpawnerData> apply(
             WeightedRandomList<MobSpawnSettings.SpawnerData> original) {
-        if (original == null || original.isEmpty() || !MobRules.hasProbabilityRules()) {
+        if (original == null || original.isEmpty() || !MobRules.hasFrequencyBoosts() || disabled) {
             return original;
         }
 
         int revision = MobRules.revision();
         if (revision != cachedRevision) {
             CACHE.clear();
-            PRODUCED.clear();
             cachedRevision = revision;
         }
 
-        Cached cached = CACHE.get(original);
+        WeightedRandomList<MobSpawnSettings.SpawnerData> cached = CACHE.get(original);
         if (cached != null) {
-            return cached.scaled;
+            return cached;
         }
 
-        List<MobSpawnSettings.SpawnerData> entries = original.unwrap();
-        boolean configured = false;
+        WeightedRandomList<MobSpawnSettings.SpawnerData> boosted = boost(original.unwrap());
+        if (boosted == null) {
+            // No rule above 1.0 in this list: remember that and keep the identity untouched.
+            remember(original, original);
+            return original;
+        }
+
+        if (!remember(original, boosted)) {
+            // We cannot promise a stable object for this list, so stay with vanilla behaviour.
+            disabled = true;
+            alexsaccuratemobspawn.LOGGER.warn(
+                    "Spawn frequency boosts are disabled: the spawn list cache reached its bound of {} entries",
+                    MAX_CACHE_ENTRIES);
+            return original;
+        }
+
+        if (MobRules.logOnce("boost:" + original.unwrap().size())) {
+            alexsaccuratemobspawn.LOGGER.info(
+                    "Applied spawn frequency boosts (probability > 1) to a spawn list of {} entries",
+                    original.unwrap().size());
+        }
+        return boosted;
+    }
+
+    /** @return true when the mapping could be stored. */
+    private static boolean remember(WeightedRandomList<MobSpawnSettings.SpawnerData> original,
+                                    WeightedRandomList<MobSpawnSettings.SpawnerData> scaled) {
+        if (CACHE.size() >= MAX_CACHE_ENTRIES) {
+            return false;
+        }
+        CACHE.put(original, scaled);
+        return true;
+    }
+
+    /**
+     * @return a new list whose entries carry the boosted weights, or {@code null} when no entry is
+     *     above {@code 1.0} or the weights would overflow.
+     */
+    private static WeightedRandomList<MobSpawnSettings.SpawnerData> boost(
+            List<MobSpawnSettings.SpawnerData> entries) {
+        boolean boosted = false;
         for (MobSpawnSettings.SpawnerData data : entries) {
-            if (MobRules.probability(data.type) != 1.0D) {
-                configured = true;
+            if (MobRules.probability(data.type) > 1.0D) {
+                boosted = true;
                 break;
             }
         }
-
-        WeightedRandomList<MobSpawnSettings.SpawnerData> result = original;
-        if (configured) {
-            WeightedRandomList<MobSpawnSettings.SpawnerData> rebuilt = rebuild(entries, SCALE);
-            if (rebuilt == null) {
-                // Weights would overflow int: fall back to unscaled rounding.
-                rebuilt = rebuild(entries, 1);
-            }
-            if (rebuilt == null) {
-                alexsaccuratemobspawn.LOGGER.warn("Spawn weights overflowed, probability rules skipped for one list");
-            } else {
-                result = rebuilt;
-                // Fires once per distinct spawn list per config revision (the identity cache short
-                // circuits every later call), so it stays bounded while proving rules are applied.
-                alexsaccuratemobspawn.LOGGER.info("Spawn probability applied to a spawn list: {} -> {} entries",
-                        entries.size(), result.unwrap().size());
-            }
+        if (!boosted) {
+            return null;
         }
 
-        if (CACHE.size() < MAX_CACHE_ENTRIES) {
-            CACHE.put(original, new Cached(revision, result));
+        WeightedRandomList<MobSpawnSettings.SpawnerData> scaled = build(entries, SCALE);
+        if (scaled == null) {
+            // Weights would overflow int: retry without the extra resolution.
+            scaled = build(entries, 1);
         }
-        if (result != original && PRODUCED.size() < MAX_CACHE_ENTRIES) {
-            PRODUCED.add(result);
-        }
-        return result;
+        return scaled;
     }
 
     /** @return the rebuilt list, or {@code null} if the total weight would overflow. */
-    private static WeightedRandomList<MobSpawnSettings.SpawnerData> rebuild(
+    private static WeightedRandomList<MobSpawnSettings.SpawnerData> build(
             List<MobSpawnSettings.SpawnerData> entries, int scale) {
         List<MobSpawnSettings.SpawnerData> out = new ArrayList<>(entries.size());
         long total = 0L;
         for (MobSpawnSettings.SpawnerData data : entries) {
-            double probability = MobRules.probability(data.type);
-            if (probability <= 0.0D) {
-                continue;
-            }
+            // Probabilities below 1 are handled per spawn attempt, never here.
+            double probability = Math.max(1.0D, MobRules.probability(data.type));
             long weight = Math.round((double) data.getWeight().asInt() * probability * (double) scale);
             if (weight < 1L) {
                 weight = 1L;
@@ -133,8 +159,5 @@ public final class SpawnWeightScaler {
             out.add(new MobSpawnSettings.SpawnerData(data.type, (int) weight, data.minCount, data.maxCount));
         }
         return WeightedRandomList.create(out);
-    }
-
-    private record Cached(int revision, WeightedRandomList<MobSpawnSettings.SpawnerData> scaled) {
     }
 }

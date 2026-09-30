@@ -34,6 +34,13 @@ public final class MobRules {
     private static volatile boolean probabilityEnabled = true;
     private static volatile boolean showChatNotice = true;
 
+    /**
+     * True when at least one probability is above {@code 1.0}. Those are the only rules that need the
+     * biome spawn lists to be rewritten; everything else is decided per spawn attempt. Kept as a flag so
+     * the hot path is a single volatile read.
+     */
+    private static volatile boolean frequencyBoosts = false;
+
     /** Bumped on every successful reload; used to invalidate caches. */
     private static volatile int revision = 0;
 
@@ -52,7 +59,13 @@ public final class MobRules {
         multiplierEnabled = enableMultiplier;
         probabilityEnabled = enableProbability;
         showChatNotice = notice;
+        frequencyBoosts = newProbabilities.values().stream().anyMatch(value -> value > 1.0D);
         revision++;
+    }
+
+    /** True when at least one probability is above {@code 1.0} and the feature is enabled. */
+    public static boolean hasFrequencyBoosts() {
+        return probabilityEnabled && frequencyBoosts;
     }
 
     public static double multiplier(EntityType<?> type) {
